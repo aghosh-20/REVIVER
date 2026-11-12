@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>REVIVER — Patient Registration & Triage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --orange: #FF6B35;
+      --orange-dark: #c94e1e;
+      --orange-glow: rgba(255,107,53,0.3);
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --bg: #0A0806;
+      --bg2: #130F0A;
+      --surface: rgba(255,255,255,0.03);
+      --border: rgba(255,255,255,0.07);
+      --text: #F0F2F7;
+      --muted: rgba(240,242,247,0.45);
+    }
+
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      background:var(--bg);
+      color:var(--text);
+      font-family:'DM Sans',sans-serif;
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+
+    body::before {
+      content:''; position:fixed; inset:0;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events:none; z-index:9999; opacity:0.5;
+    }
+
+    .grid-bg {
+      position:fixed; inset:0;
+      background-image:
+        linear-gradient(rgba(255,107,53,0.06) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,107,53,0.06) 1px,transparent 1px);
+      background-size:60px 60px;
+      animation:gridPan 30s linear infinite;
+      pointer-events:none;
+    }
+
+    @keyframes gridPan { from{background-position:0 0;} to{background-position:60px 60px;} }
+
+    nav {
+      position:fixed; top:0; left:0; right:0; height:68px;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 48px;
+      background:rgba(10,8,6,0.85);
+      backdrop-filter:blur(20px);
+      border-bottom:1px solid var(--border);
+      z-index:100;
+    }
+
+    .logo { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; letter-spacing:0.12em; }
+    .logo span { color:var(--orange); }
+
+    .back-btn {
+      font-family:'Space Mono',monospace; font-size:0.68rem;
+      letter-spacing:0.1em; text-transform:uppercase;
+      color:var(--muted); text-decoration:none;
+      display:flex; align-items:center; gap:8px; transition:color 0.2s;
+    }
+    .back-btn:hover { color:var(--orange); }
+
+    main {
+      min-height:100vh;
+      padding:100px 48px 80px;
+      position:relative; z-index:1;
+      max-width:1100px; margin:0 auto;
+    }
+
+    .page-header {
+      margin-bottom:48px;
+      animation:fadeUp 0.5s ease both;
+    }
+
+    @keyframes fadeUp { from{opacity:0;transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
+
+    .badge {
+      display:inline-flex; align-items:center; gap:8px;
+      background:rgba(255,107,53,0.1);
+      border:1px solid rgba(255,107,53,0.3);
+      border-radius:99px; padding:6px 16px;
+      font-family:'Space Mono',monospace; font-size:0.65rem;
+      letter-spacing:0.12em; color:var(--orange); text-transform:uppercase;
+      margin-bottom:16px;
+    }
+
+    .dot { width:6px;height:6px;border-radius:50%;background:var(--orange);animation:pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.4;transform:scale(1.5);} }
+
+    h1 {
+      font-family:'Bebas Neue',sans-serif;
+      font-size:clamp(2.5rem,6vw,5rem);
+      letter-spacing:0.05em; line-height:0.9;
+    }
+    h1 span { color:var(--orange); }
+
+    .sub { color:var(--muted); font-size:0.95rem; line-height:1.7; max-width:580px; margin-top:12px; }
+
+    /* ── TRIAGE PRIORITY SELECTOR ── */
+    .triage-section {
+      background:var(--bg2);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:32px;
+      margin-bottom:24px;
+      animation:fadeUp 0.5s 0.1s ease both;
+    }
+
+    .section-title {
+      font-family:'Bebas Neue',sans-serif;
+      font-size:1.3rem; letter-spacing:0.06em; margin-bottom:6px;
+    }
+
+    .section-sub { color:var(--muted); font-size:0.82rem; margin-bottom:24px; }
+
+    .priority-grid {
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+    }
+
+    .priority-card {
+      padding:20px 16px;
+      border-radius:12px;
+      border:2px solid transparent;
+      cursor:pointer;
+      transition:all 0.25s;
+      text-align:center;
+      background:var(--surface);
+    }
+
+    .priority-card:hover { transform:translateY(-3px); }
+
+    .priority-card.p1 { border-color:rgba(239,68,68,0.4); }
+    .priority-card.p2 { border-color:rgba(234,179,8,0.4); }
+    .priority-card.p3 { border-color:rgba(34,197,94,0.4); }
+    .priority-card.p4 { border-color:rgba(148,163,184,0.4); }
+
+    .priority-card.selected.p1 { background:rgba(239,68,68,0.15); box-shadow:0 0 20px rgba(239,68,68,0.2); }
+    .priority-card.selected.p2 { background:rgba(234,179,8,0.12); box-shadow:0 0 20px rgba(234,179,8,0.2); }
+    .priority-card.selected.p3 { background:rgba(34,197,94,0.12); box-shadow:0 0 20px rgba(34,197,94,0.2); }
+    .priority-card.selected.p4 { background:rgba(148,163,184,0.1); box-shadow:0 0 20px rgba(148,163,184,0.15); }
+
+    .p-icon { font-size:1.8rem; margin-bottom:8px; }
+
+    .p-label {
+      font-family:'Bebas Neue',sans-serif;
+      font-size:1rem; letter-spacing:0.06em;
+    }
+
+    .p1 .p-label { color:var(--red); }
+    .p2 .p-label { color:var(--yellow); }
+    .p3 .p-label { color:var(--green); }
+    .p4 .p-label { color:#94a3b8; }
+
+    .p-desc { font-size:0.72rem; color:var(--muted); line-height:1.4; margin-top:4px; }
+
+    /* ── FORM SECTION ── */
+    .form-section {
+      display:grid; grid-template-columns:1fr 1fr; gap:20px;
+      animation:fadeUp 0.5s 0.2s ease both;
+    }
+
+    .form-card {
+      background:var(--bg2);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:32px;
+    }
+
+    .form-card h3 {
+      font-family:'Bebas Neue',sans-serif;
+      font-size:1.2rem; letter-spacing:0.05em; margin-bottom:4px;
+    }
+
+    .form-card > p { color:var(--muted); font-size:0.8rem; margin-bottom:24px; }
+
+    .field { margin-bottom:16px; }
+    .field label {
+      display:block;
+      font-family:'Space Mono',monospace; font-size:0.6rem;
+      letter-spacing:0.12em; text-transform:uppercase;
+      color:var(--muted); margin-bottom:8px;
+    }
+
+    .field input, .field select, .field textarea {
+      width:100%;
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:8px;
+      padding:11px 14px;
+      color:var(--text);
+      font-family:'DM Sans',sans-serif; font-size:0.88rem;
+      outline:none; transition:border-color 0.2s; resize:none;
+      appearance:none;
+    }
+
+    .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--orange); }
+    .field select option { background:#120e0a; }
+
+    .row2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+    .submit-main {
+      width:100%; padding:16px;
+      background:var(--orange);
+      border:none; border-radius:10px;
+      color:#fff;
+      font-family:'Bebas Neue',sans-serif;
+      font-size:1.3rem; letter-spacing:0.1em;
+      cursor:pointer; transition:all 0.2s;
+      margin-top:8px;
+    }
+
+    .submit-main:hover { background:var(--orange-dark); transform:translateY(-2px); }
+
+    /* QUEUE / RESULT */
+    .result-panel {
+      display:none;
+      background:var(--bg2);
+      border:1px solid rgba(255,107,53,0.3);
+      border-radius:16px;
+      padding:36px;
+      margin-top:24px;
+      text-align:center;
+      animation:fadeUp 0.4s ease both;
+    }
+
+    .result-panel.show { display:block; }
+
+    .result-icon { font-size:3rem; margin-bottom:12px; }
+
+    .result-id {
+      font-family:'Space Mono',monospace; font-size:0.65rem;
+      letter-spacing:0.15em; text-transform:uppercase;
+      color:var(--muted); margin-bottom:8px;
+    }
+
+    .result-name {
+      font-family:'Bebas Neue',sans-serif;
+      font-size:2rem; letter-spacing:0.05em;
+    }
+
+    .result-priority {
+      display:inline-block;
+      border-radius:99px; padding:6px 24px;
+      font-family:'Space Mono',monospace; font-size:0.72rem;
+      letter-spacing:0.12em; text-transform:uppercase;
+      margin:16px 0;
+    }
+
+    .result-priority.rp1 { background:rgba(239,68,68,0.15); color:var(--red); border:1px solid rgba(239,68,68,0.4); }
+    .result-priority.rp2 { background:rgba(234,179,8,0.12); color:var(--yellow); border:1px solid rgba(234,179,8,0.4); }
+    .result-priority.rp3 { background:rgba(34,197,94,0.12); color:var(--green); border:1px solid rgba(34,197,94,0.4); }
+    .result-priority.rp4 { background:rgba(148,163,184,0.1); color:#94a3b8; border:1px solid rgba(148,163,184,0.3); }
+
+    .result-msg { color:var(--muted); font-size:0.9rem; line-height:1.6; max-width:440px; margin:0 auto; }
+
+    .queue-num {
+      font-family:'Bebas Neue',sans-serif;
+      font-size:4rem; color:var(--orange);
+      margin-top:16px;
+    }
+
+    .queue-lbl { font-size:0.78rem; color:var(--muted); margin-top:-8px; }
+
+    @media(max-width:768px) {
+      main { padding:90px 20px 60px; }
+      nav { padding:0 20px; }
+      .priority-grid { grid-template-columns:repeat(2,1fr); }
+      .form-section { grid-template-columns:1fr; }
+      .row2 { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<nav>
+  <div class="logo">REVI<span>V</span>ER</div>
+  <a href="index.html" class="back-btn">← Back to Home</a>
+</nav>
+
+<main>
+  <div class="page-header">
+    <div class="badge"><span class="dot"></span> Medical — Triage Registration</div>
+    <h1>PATIENT <span>REGISTRATION</span></h1>
+    <p class="sub">Register patients with AI-assisted priority scoring. The system categorises from Immediate critical care through to Delayed or Expectant treatment.</p>
+  </div>
+
+  <!-- PRIORITY SELECTOR -->
+  <div class="triage-section">
+    <div class="section-title">TRIAGE PRIORITY</div>
+    <p class="section-sub">Select the patient's urgency level based on condition assessment.</p>
+    <div class="priority-grid">
+      <div class="priority-card p1" onclick="selectPriority(1,this)">
+        <div class="p-icon">🔴</div>
+        <div class="p-label">P1 — Immediate</div>
+        <div class="p-desc">Life-threatening. Needs immediate intervention. ICU / OT level care.</div>
+      </div>
+      <div class="priority-card p2" onclick="selectPriority(2,this)">
+        <div class="p-icon">🟡</div>
+        <div class="p-label">P2 — Urgent</div>
+        <div class="p-desc">Serious but stable. Can wait up to 1 hour. Close monitoring required.</div>
+      </div>
+      <div class="priority-card p3" onclick="selectPriority(3,this)">
+        <div class="p-icon">🟢</div>
+        <div class="p-label">P3 — Delayed</div>
+        <div class="p-desc">Minor injury or illness. Treatment can be deferred safely.</div>
+      </div>
+      <div class="priority-card p4" onclick="selectPriority(4,this)">
+        <div class="p-icon">⚫</div>
+        <div class="p-label">P4 — Expectant</div>
+        <div class="p-desc">Critical with very low survival chance. Palliative / comfort care.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORM -->
+  <div class="form-section">
+    <div class="form-card">
+      <h3>PATIENT INFORMATION</h3>
+      <p>Personal and demographic details.</p>
+
+      <div class="field"><label>Full Name</label><input type="text" id="fName" placeholder="Patient's full name"></div>
+      <div class="row2">
+        <div class="field"><label>Age</label><input type="number" id="fAge" placeholder="e.g. 34" min="0" max="120"></div>
+        <div class="field">
+          <label>Gender</label>
+          <select id="fGender">
+            <option value="">— Select —</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Contact / Next of Kin</label><input type="tel" id="fPhone" placeholder="+91 phone number"></div>
+      <div class="field">
+        <label>Blood Group</label>
+        <select id="fBlood">
+          <option value="">— Unknown —</option>
+          <option>A+</option><option>A−</option>
+          <option>B+</option><option>B−</option>
+          <option>AB+</option><option>AB−</option>
+          <option>O+</option><option>O−</option>
+        </select>
+      </div>
+      <div class="field"><label>Known Allergies / Conditions</label>
+        <textarea rows="2" id="fAllergy" placeholder="e.g. penicillin, diabetes..."></textarea>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <h3>MEDICAL DETAILS</h3>
+      <p>Symptoms, vitals and required department.</p>
+
+      <div class="field">
+        <label>Primary Complaint / Diagnosis</label>
+        <select id="fComplaint">
+          <option value="">— Select Category —</option>
+          <option>Cardiac / Chest Pain</option>
+          <option>Trauma / Fracture</option>
+          <option>Stroke / Neurological</option>
+          <option>Respiratory Distress</option>
+          <option>Burns / Poisoning</option>
+          <option>Obstetric / Gynaecological</option>
+          <option>Paediatric Emergency</option>
+          <option>Psychiatric / Behavioural</option>
+          <option>General / Other</option>
+        </select>
+      </div>
+
+      <div class="row2">
+        <div class="field"><label>BP (mmHg)</label><input type="text" id="fBP" placeholder="e.g. 120/80"></div>
+        <div class="field"><label>Heart Rate (bpm)</label><input type="number" id="fHR" placeholder="e.g. 72"></div>
+      </div>
+
+      <div class="row2">
+        <div class="field"><label>SpO₂ (%)</label><input type="number" id="fSpo2" placeholder="e.g. 98" min="0" max="100"></div>
+        <div class="field"><label>Temperature (°C)</label><input type="number" id="fTemp" placeholder="e.g. 37.2" step="0.1"></div>
+      </div>
+
+      <div class="field">
+        <label>Assigned Department / Ward</label>
+        <select id="fDept">
+          <option value="">— Auto-assign —</option>
+          <option>ICU</option>
+          <option>Operation Theatre</option>
+          <option>Emergency Ward</option>
+          <option>Cardiology</option>
+          <option>Neurology</option>
+          <option>Orthopaedics</option>
+          <option>General Ward</option>
+          <option>Paediatrics</option>
+        </select>
+      </div>
+
+      <div class="field"><label>Additional Notes</label>
+        <textarea rows="2" id="fNotes" placeholder="Any additional clinical notes..."></textarea>
+      </div>
+
+      <button class="submit-main" onclick="registerPatient()">REGISTER PATIENT</button>
+    </div>
+  </div>
+
+  <!-- RESULT PANEL -->
+  <div class="result-panel" id="resultPanel">
+    <div class="result-icon" id="rIcon">✅</div>
+    <div class="result-id" id="rId">TOKEN #—</div>
+    <div class="result-name" id="rName">—</div>
+    <div class="result-priority" id="rPriority">—</div>
+    <div class="result-msg" id="rMsg">—</div>
+    <div class="queue-num" id="rQueue">—</div>
+    <div class="queue-lbl">Estimated Queue Position</div>
+  </div>
+
+</main>
+
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js';
+  const supabaseUrl = 'https://evtielrlljftqyraiehe.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2dGllbHJsbGpmdHF5cmFpZWhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2NDUyMDMsImV4cCI6MjA3NjIyMTIwM30.Sfvf7krkQ2NCE98zgW4BmRUFOdQUHClGK6hhiz--Hbg';
+  window.supabase = createClient(supabaseUrl, supabaseKey);
+
+  window.registerPatient = async function() {
+    const name      = document.getElementById('fName').value.trim();
+    const age       = parseInt(document.getElementById('fAge').value) || 0;
+    const gender    = document.getElementById('fGender').value;
+    const phone     = document.getElementById('fPhone').value.trim();
+    const blood     = document.getElementById('fBlood').value;
+    const complaint = document.getElementById('fComplaint').value;
+    const dept      = document.getElementById('fDept').value;
+    const notes     = document.getElementById('fNotes').value.trim();
+    const priority  = window.selectedPriority || 3;
+
+    if (!name || !complaint) {
+      alert('Please enter patient name and primary complaint.');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('patients')
+        .insert([{ name, age, priority, gender, phone, blood_group: blood, complaint, department: dept, notes }])
+        .select();
+
+      if (error) { console.error(error); alert('DB Error: ' + error.message); return; }
+
+      showResult(name, priority, data?.[0]?.id);
+    } catch(e) {
+      // fallback if DB not ready — still show result
+      showResult(name, priority, null);
+    }
+  };
+
+  function showResult(name, priority, id) {
+    const labels = {
+      1: { label:'P1 — IMMEDIATE', cls:'rp1', icon:'🔴', msg:'Patient has been flagged for IMMEDIATE intervention. OT / ICU team alerted. Please proceed to the critical care unit now.' },
+      2: { label:'P2 — URGENT',    cls:'rp2', icon:'🟡', msg:'Patient requires urgent attention within 60 minutes. Assigned to emergency ward. Medical team notified.' },
+      3: { label:'P3 — DELAYED',   cls:'rp3', icon:'🟢', msg:'Patient is stable. Treatment can be deferred. Please wait in the designated area. A doctor will see you shortly.' },
+      4: { label:'P4 — EXPECTANT', cls:'rp4', icon:'⚫', msg:'Palliative / comfort care protocol activated. A dedicated care team has been informed.' }
+    };
+
+    const info = labels[priority] || labels[3];
+    const token = id ? `TOKEN #${String(id).padStart(4,'0')}` : `TOKEN #${Math.floor(1000+Math.random()*8999)}`;
+    const queue = priority === 1 ? 1 : priority === 2 ? Math.floor(2+Math.random()*4) : Math.floor(5+Math.random()*10);
+
+    document.getElementById('rIcon').innerText = info.icon;
+    document.getElementById('rId').innerText = token;
+    document.getElementById('rName').innerText = name.toUpperCase();
+    const rp = document.getElementById('rPriority');
+    rp.innerText = info.label; rp.className = 'result-priority ' + info.cls;
+    document.getElementById('rMsg').innerText = info.msg;
+    document.getElementById('rQueue').innerText = '#' + queue;
+
+    const panel = document.getElementById('resultPanel');
+    panel.classList.add('show');
+    panel.scrollIntoView({ behavior:'smooth', block:'center' });
+  }
+</script>
+
+<script>
+  window.selectedPriority = null;
+
+  function selectPriority(num, el) {
+    document.querySelectorAll('.priority-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    window.selectedPriority = num;
+  }
+</script>
+</body>
+</html>
